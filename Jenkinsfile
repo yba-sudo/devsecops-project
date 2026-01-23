@@ -4,8 +4,6 @@ pipeline {
     tools {
         maven 'Maven3'
         jdk 'JDK11'
-        // Use the exact class name or short name
-        hudson.plugins.sonar.SonarRunnerInstallation 'SonarScanner'
     }
     
     environment {
@@ -30,21 +28,13 @@ pipeline {
                     sh 'mvn jacoco:report'
                 }
             }
-            post {
-                success {
-                    junit 'backend/target/surefire-reports/*.xml'
-                }
-            }
         }
         
         stage('SonarQube Analysis') {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('SonarQube') {
-                        sh "mvn sonar:sonar \
-                            -Dsonar.projectKey=devsecops-backend \
-                            -Dsonar.projectName='DevSecOps Backend' \
-                            -Dsonar.host.url=${SONAR_HOST_URL}"
+                        sh "mvn sonar:sonar -Dsonar.projectKey=devsecops-backend -Dsonar.host.url=${SONAR_HOST_URL}"
                     }
                 }
             }
@@ -85,11 +75,9 @@ pipeline {
         stage('Integration Test') {
             steps {
                 sh '''
-                    echo "Testing deployed application..."
-                    curl -f http://localhost:8088/api/health || exit 1
-                    curl -f http://localhost:8088/api/hello || exit 1
-                    curl -f "http://localhost:8088/api/greet?name=Jenkins" || exit 1
-                    echo "All tests passed!"
+                    curl -f http://localhost:8088/api/health
+                    curl -f http://localhost:8088/api/hello
+                    curl -f "http://localhost:8088/api/greet?name=Jenkins"
                 '''
             }
         }
@@ -97,15 +85,8 @@ pipeline {
     
     post {
         always {
-            echo 'Cleaning up Docker containers...'
             sh 'docker-compose down || true'
             junit 'backend/target/surefire-reports/*.xml'
-        }
-        success {
-            echo '✅ Pipeline SUCCESS! Code quality analyzed with SonarQube.'
-        }
-        failure {
-            echo '❌ Pipeline FAILED!'
         }
     }
 }
