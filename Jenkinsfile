@@ -1,17 +1,18 @@
 pipeline {
     agent any
-    
+
     tools {
         maven 'Maven3'
         jdk 'JDK11'
     }
-    
+
     environment {
         DOCKER_IMAGE = "devsecops-backend"
         DOCKER_TAG = "${env.BUILD_ID}"
         SONAR_HOST_URL = "http://192.168.56.10:9000"
+		SONAR_TOKEN = credentials('sonarqube-token')
     }
-    
+
     stages {
         stage('Checkout Git') {
             steps {
@@ -20,7 +21,7 @@ pipeline {
                     credentialsId: 'github-creds'
             }
         }
-        
+
         stage('Build & Test with Coverage') {
             steps {
                 dir('backend') {
@@ -29,7 +30,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('SonarQube Analysis') {
             steps {
                 dir('backend') {
@@ -40,12 +41,13 @@ pipeline {
                             -Dsonar.projectKey=devsecops-backend \
                             -Dsonar.projectName="DevSecOps Backend" \
                             -Dsonar.host.url=${SONAR_HOST_URL}
+							-Dsonar.login=${SONAR_TOKEN}
                         '''
                     }
                 }
             }
         }
-        
+
         stage('Quality Gate') {
             steps {
                 timeout(time: 1, unit: 'MINUTES') {
@@ -53,7 +55,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Package') {
             steps {
                 dir('backend') {
@@ -61,7 +63,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -69,7 +71,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run with Docker Compose') {
             steps {
                 sh 'docker-compose down || true'
@@ -77,7 +79,7 @@ pipeline {
                 sleep 30
             }
         }
-        
+
         stage('Integration Test') {
             steps {
                 sh '''
@@ -88,7 +90,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             sh 'docker-compose down || true'
