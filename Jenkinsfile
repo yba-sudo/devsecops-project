@@ -6,8 +6,12 @@ pipeline {
         jdk 'JDK11'
     }
     
+    environment {
+        DOCKER_IMAGE = "devsecops-backend"
+        DOCKER_TAG = "${env.BUILD_ID}"
+    }
+    
     stages {
-        // Stage 1: Get code from GitHub
         stage('Checkout Git') {
             steps {
                 git branch: 'main',
@@ -16,7 +20,6 @@ pipeline {
             }
         }
         
-        // Stage 2: Build and test
         stage('Build & Test') {
             steps {
                 dir('backend') {
@@ -25,33 +28,59 @@ pipeline {
             }
         }
         
-        // Stage 3: Package
         stage('Package') {
             steps {
                 dir('backend') {
                     sh 'mvn package -DskipTests'
+                    sh 'ls -la target/*.jar'
                 }
             }
         }
         
-        // Stage 4: Simple echo (we'll add Docker later)
-        stage('Docker Ready') {
+        stage('Build Docker Image') {
             steps {
-                echo 'Application packaged. Ready for Docker build in next phase.'
-                sh 'ls -la backend/target/*.jar'
+                script {
+                    // Build Docker image
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    
+                    // List images to verify
+                    sh 'docker images | grep ${DOCKER_IMAGE}'
+                }
+            }
+        }
+        
+        stage('Run with Docker Compose') {
+            steps {
+                sh 'docker-compose down || true'
+                sh 'docker-compose up -d --build'
+                sleep 30  // Wait for containers to start
+            }
+        }
+        
+        stage('Integration Test') {
+            steps {
+                sh '''
+                    echo "Testing deployed application..."
+                    curl -f http://localhost:8088/api/health || exit 1
+                    curl -f http://localhost:8080/api/hello || exit 1
+                    echo "All tests passed!"
+                '''
             }
         }
     }
     
     post {
         always {
-            echo 'Pipeline completed!'
+            echo 'Cleaning up Docker containers...'
+            sh 'docker-compose down || true'
+            sh 'docker image prune -f || true'
         }
         success {
-            echo 'Success!'
+            echo '✅ Pipeline SUCCESS! Docker image built and deployed.'
+            sh 'docker images | grep ${DOCKER_IMAGE}'
         }
         failure {
-            echo 'Failed!'
+            echo '❌ Pipeline FAILED!'
         }
     }
 }
