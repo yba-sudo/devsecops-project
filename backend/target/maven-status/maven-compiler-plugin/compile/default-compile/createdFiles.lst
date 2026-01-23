@@ -1,2 +1,3 @@
+com/devsecops/HelloController.class
+com/devsecops/service/MessageService.class
 com/devsecops/DevSecOpsApplication.class
-com/devsecops/controller/HelloController.class

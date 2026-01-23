@@ -4,6 +4,7 @@ pipeline {
     tools {
         maven 'Maven3'
         jdk 'JDK11'
+        sonarqubeScanner 'SonarScanner'
     }
     
     environment {
@@ -20,10 +21,38 @@ pipeline {
             }
         }
         
-        stage('Build & Test') {
+        stage('Build & Test with Coverage') {
             steps {
                 dir('backend') {
                     sh 'mvn clean compile test'
+                    // Generate JaCoCo report
+                    sh 'mvn jacoco:report'
+                }
+            }
+            post {
+                success {
+                    junit 'backend/target/surefire-reports/*.xml'
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                dir('backend') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh 'mvn sonar:sonar \
+                            -Dsonar.projectKey=devsecops-backend \
+                            -Dsonar.projectName="DevSecOps Backend" \
+                            -Dsonar.host.url=http://192.168.56.10:9000'
+                    }
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -32,7 +61,6 @@ pipeline {
             steps {
                 dir('backend') {
                     sh 'mvn package -DskipTests'
-                    sh 'ls -la target/*.jar'
                 }
             }
         }
@@ -40,11 +68,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image
                     docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-                    
-                    // List images to verify
-                    sh 'docker images | grep ${DOCKER_IMAGE}'
                 }
             }
         }
@@ -53,7 +77,7 @@ pipeline {
             steps {
                 sh 'docker-compose down || true'
                 sh 'docker-compose up -d --build'
-                sleep 30  // Wait for containers to start
+                sleep 30
             }
         }
         
@@ -63,6 +87,7 @@ pipeline {
                     echo "Testing deployed application..."
                     curl -f http://localhost:8088/api/health || exit 1
                     curl -f http://localhost:8088/api/hello || exit 1
+                    curl -f "http://localhost:8088/api/greet?name=Jenkins" || exit 1
                     echo "All tests passed!"
                 '''
             }
@@ -73,11 +98,12 @@ pipeline {
         always {
             echo 'Cleaning up Docker containers...'
             sh 'docker-compose down || true'
-            sh 'docker image prune -f || true'
+            
+            // Archive test results
+            junit 'backend/target/surefire-reports/*.xml'
         }
         success {
-            echo '✅ Pipeline SUCCESS! Docker image built and deployed.'
-            sh 'docker images | grep ${DOCKER_IMAGE}'
+            echo '✅ Pipeline SUCCESS! Code quality analyzed with SonarQube.'
         }
         failure {
             echo '❌ Pipeline FAILED!'

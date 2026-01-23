@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.devsecops.controller.HelloControllerTest" time="4.583" tests="3" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.devsecops.service.MessageServiceTest" time="0.622" tests="3" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -52,7 +52,7 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="65.0"/>
   </properties>
-  <testcase name="testGreetEndpoint" classname="com.devsecops.controller.HelloControllerTest" time="0.139"/>
-  <testcase name="testHealthEndpoint" classname="com.devsecops.controller.HelloControllerTest" time="0.02"/>
-  <testcase name="testHelloEndpoint" classname="com.devsecops.controller.HelloControllerTest" time="0.014"/>
+  <testcase name="testGetHealthMessage" classname="com.devsecops.service.MessageServiceTest" time="0.586"/>
+  <testcase name="testGetCustomMessage" classname="com.devsecops.service.MessageServiceTest" time="0.01"/>
+  <testcase name="testGetWelcomeMessage" classname="com.devsecops.service.MessageServiceTest" time="0.007"/>
 </testsuite>
