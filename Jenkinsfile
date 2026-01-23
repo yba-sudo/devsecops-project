@@ -34,7 +34,13 @@ pipeline {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('SonarQube') {
-                        sh "mvn sonar:sonar -Dsonar.projectKey=devsecops-backend -Dsonar.host.url=${SONAR_HOST_URL}"
+                        // withSonarQubeEnv injects sonar.login automatically
+                        sh '''
+                            mvn sonar:sonar \
+                            -Dsonar.projectKey=devsecops-backend \
+                            -Dsonar.projectName="DevSecOps Backend" \
+                            -Dsonar.host.url=${SONAR_HOST_URL}
+                        '''
                     }
                 }
             }
