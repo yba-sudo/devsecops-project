@@ -4,12 +4,14 @@ pipeline {
     tools {
         maven 'Maven3'
         jdk 'JDK11'
-        sonarqubeScanner 'SonarScanner'
+        // CORRECT tool name for SonarQube Scanner
+        sonarRunner 'SonarScanner'
     }
     
     environment {
         DOCKER_IMAGE = "devsecops-backend"
         DOCKER_TAG = "${env.BUILD_ID}"
+        SONAR_HOST_URL = "http://192.168.56.10:9000"
     }
     
     stages {
@@ -40,10 +42,10 @@ pipeline {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('SonarQube') {
-                        sh 'mvn sonar:sonar \
+                        sh "mvn sonar:sonar \
                             -Dsonar.projectKey=devsecops-backend \
-                            -Dsonar.projectName="DevSecOps Backend" \
-                            -Dsonar.host.url=http://192.168.56.10:9000'
+                            -Dsonar.projectName='DevSecOps Backend' \
+                            -Dsonar.host.url=${SONAR_HOST_URL}"
                     }
                 }
             }
