@@ -4,8 +4,8 @@ pipeline {
     tools {
         maven 'Maven3'
         jdk 'JDK11'
-        // CORRECT tool name for SonarQube Scanner
-        sonarRunner 'SonarScanner'
+        // Use the exact class name or short name
+        hudson.plugins.sonar.SonarRunnerInstallation 'SonarScanner'
     }
     
     environment {
@@ -27,7 +27,6 @@ pipeline {
             steps {
                 dir('backend') {
                     sh 'mvn clean compile test'
-                    // Generate JaCoCo report
                     sh 'mvn jacoco:report'
                 }
             }
@@ -100,8 +99,6 @@ pipeline {
         always {
             echo 'Cleaning up Docker containers...'
             sh 'docker-compose down || true'
-            
-            // Archive test results
             junit 'backend/target/surefire-reports/*.xml'
         }
         success {
