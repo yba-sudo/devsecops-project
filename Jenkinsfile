@@ -62,7 +62,7 @@ pipeline {
                 sh '''
                     echo "Testing deployed application..."
                     curl -f http://localhost:8088/api/health || exit 1
-                    curl -f http://localhost:8080/api/hello || exit 1
+                    curl -f http://localhost:8088/api/hello || exit 1
                     echo "All tests passed!"
                 '''
             }
