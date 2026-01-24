@@ -115,7 +115,7 @@ pipeline {
                         // Deploy main JAR (not javadoc or sources)
                         sh """
                             mvn deploy:deploy-file \
-                            -Durl=http://admin:admin@${NEXUS_URL}/repository/maven-releases/ \
+                            -Durl=http://admin:admin@192.168.56.10:8081/repository/maven-releases/ \
                             -DrepositoryId=nexus-releases \
                             -Dfile=target/devsecops-backend-${PROJECT_VERSION}.jar \
                             -DpomFile=pom.xml \
