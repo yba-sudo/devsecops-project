@@ -10,8 +10,11 @@ pipeline {
         DOCKER_IMAGE = "devsecops-backend"
         DOCKER_TAG = "${env.BUILD_ID}"
         SONAR_HOST_URL = "http://192.168.56.10:9000"
-        SONAR_CREDS = credentials('sonarqube-creds')  // Creates SONAR_CREDS_USR and SONAR_CREDS_PSW
+        SONAR_CREDS = credentials('sonarqube-creds')
         SONAR_PROJECT_KEY = "devsecops-backend"
+        NEXUS_URL = "http://192.168.56.10:8081"
+        NEXUS_CREDS = credentials('nexus-creds')  # Make sure this exists!
+        PROJECT_VERSION = "1.0.0-${env.BUILD_NUMBER}"
     }
 
     stages {
@@ -50,19 +53,14 @@ pipeline {
         stage('Check Quality Gate') {
             steps {
                 script {
-                    // Wait a bit for SonarQube to process the analysis
                     sleep 10
-                    
-                    // Try multiple times (SonarQube might take time to process)
-                    def maxAttempts = 12  // 12 attempts * 5 seconds = 1 minute max wait
-                    def attempt = 1
+                    def maxAttempts = 12
                     def qualityGateStatus = ""
                     
-                    while (attempt <= maxAttempts) {
-                        echo "Checking Quality Gate status (Attempt ${attempt}/${maxAttempts})..."
+                    for (def attempt = 1; attempt <= maxAttempts; attempt++) {
+                        echo "Checking Quality Gate (Attempt ${attempt}/${maxAttempts})..."
                         
                         try {
-                            // Call SonarQube API to get Quality Gate status
                             def response = sh(
                                 script: """
                                     curl -s -u ${SONAR_CREDS_USR}:${SONAR_CREDS_PSW} \
@@ -71,9 +69,6 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             
-                            echo "API Response: ${response}"
-                            
-                            // Parse JSON response (requires jq installed)
                             qualityGateStatus = sh(
                                 script: """
                                     echo '${response}' | jq -r '.projectStatus.status'
@@ -81,36 +76,26 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             
-                            echo "Quality Gate Status: ${qualityGateStatus}"
-                            
                             if (qualityGateStatus == "OK") {
                                 echo "✅ Quality Gate PASSED!"
                                 break
                             } else if (qualityGateStatus == "ERROR") {
                                 error "❌ Quality Gate FAILED! Check SonarQube for details."
                             }
-                            // If status is empty or not ready, continue waiting
-                            
                         } catch (Exception e) {
                             echo "Attempt ${attempt} failed: ${e.getMessage()}"
                         }
-                        
-                        sleep 5  // Wait 5 seconds before next attempt
-                        attempt++
+                        sleep 5
                     }
                     
                     if (qualityGateStatus != "OK") {
-                        if (qualityGateStatus == "ERROR") {
-                            error "❌ Quality Gate check failed after ${maxAttempts} attempts"
-                        } else {
-                            error "❌ Could not determine Quality Gate status after ${maxAttempts} attempts"
-                        }
+                        error "❌ Quality Gate check failed"
                     }
                 }
             }
         }
 
-        stage('Package') {
+        stage('Package Application') {
             steps {
                 dir('backend') {
                     sh 'mvn package -DskipTests'
@@ -118,10 +103,31 @@ pipeline {
             }
         }
 
+        stage('Deploy to Nexus') {
+            steps {
+                dir('backend') {
+                    script {
+                        // Update version with build number
+                        sh "mvn versions:set -DnewVersion=${PROJECT_VERSION} -DgenerateBackupPoms=false"
+                        
+                        // Deploy to Nexus with full artifacts
+                        sh """
+                            mvn deploy \
+                            -DskipTests \
+                            -DaltDeploymentRepository=nexus-releases::default::${NEXUS_URL}/repository/maven-releases/
+                        """
+                        
+                        echo "✅ Artifact deployed to Nexus!"
+                        echo "📦 Nexus URL: ${NEXUS_URL}/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend%2F${PROJECT_VERSION}"
+                    }
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    docker.build("${DOCKER_IMAGE}:${PROJECT_VERSION}")
                 }
             }
         }
@@ -149,12 +155,16 @@ pipeline {
         always {
             sh 'docker-compose down || true'
             junit 'backend/target/surefire-reports/*.xml'
+            archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
         }
         success {
-            echo '🎉 Pipeline completed successfully! All tests passed and Quality Gate approved.'
+            echo '🎉 Pipeline completed successfully!'
+            echo "✅ Code Quality: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
+            echo "📦 Artifact: ${NEXUS_URL}/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend"
+            echo "🐳 Docker Image: ${DOCKER_IMAGE}:${PROJECT_VERSION}"
         }
         failure {
-            echo '❌ Pipeline failed! Check the logs above.'
+            echo '❌ Pipeline failed! Check logs above.'
         }
     }
 }
