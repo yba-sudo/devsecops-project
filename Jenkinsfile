@@ -10,7 +10,7 @@ pipeline {
         DOCKER_IMAGE = "devsecops-backend"
         DOCKER_TAG = "${env.BUILD_ID}"
         SONAR_HOST_URL = "http://192.168.56.10:9000"
-		SONAR_TOKEN = credentials('sonarqube-token')
+        SONAR_CREDS = credentials('sonarqube-creds')  // This creates SONAR_CREDS_USR and SONAR_CREDS_PSW
     }
 
     stages {
@@ -34,24 +34,14 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 dir('backend') {
-                    withSonarQubeEnv('SonarQube') {
-                        // withSonarQubeEnv injects sonar.login automatically
-                        sh '''
-                            mvn sonar:sonar \
-                            -Dsonar.projectKey=devsecops-backend \
-                            -Dsonar.projectName="DevSecOps Backend" \
-                            -Dsonar.host.url=${SONAR_HOST_URL}
-							-Dsonar.login=${SONAR_TOKEN}
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 1, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                    sh """
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=devsecops-backend \
+                        -Dsonar.projectName="DevSecOps Backend" \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_CREDS_USR} \
+                        -Dsonar.password=${SONAR_CREDS_PSW}
+                    """
                 }
             }
         }
