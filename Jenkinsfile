@@ -13,7 +13,7 @@ pipeline {
         SONAR_CREDS = credentials('sonarqube-creds')
         SONAR_PROJECT_KEY = "devsecops-backend"
         NEXUS_URL = "http://192.168.56.10:8081"
-        NEXUS_CREDS = credentials('nexus-creds')  # Make sure this exists!
+        NEXUS_CREDS = credentials('nexus-creds')
         PROJECT_VERSION = "1.0.0-${env.BUILD_NUMBER}"
     }
 
