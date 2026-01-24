@@ -13,7 +13,6 @@ pipeline {
         SONAR_CREDS = credentials('sonarqube-creds')
         SONAR_PROJECT_KEY = "devsecops-backend"
         NEXUS_URL = "http://192.168.56.10:8081"
-        NEXUS_CREDS = credentials('nexus-creds')
         PROJECT_VERSION = "1.0.0-${env.BUILD_NUMBER}"
     }
 
@@ -56,10 +55,10 @@ pipeline {
                     sleep 10
                     def maxAttempts = 12
                     def qualityGateStatus = ""
-                    
+
                     for (def attempt = 1; attempt <= maxAttempts; attempt++) {
                         echo "Checking Quality Gate (Attempt ${attempt}/${maxAttempts})..."
-                        
+
                         try {
                             def response = sh(
                                 script: """
@@ -68,14 +67,14 @@ pipeline {
                                 """,
                                 returnStdout: true
                             ).trim()
-                            
+
                             qualityGateStatus = sh(
                                 script: """
                                     echo '${response}' | jq -r '.projectStatus.status'
                                 """,
                                 returnStdout: true
                             ).trim()
-                            
+
                             if (qualityGateStatus == "OK") {
                                 echo "✅ Quality Gate PASSED!"
                                 break
@@ -87,7 +86,7 @@ pipeline {
                         }
                         sleep 5
                     }
-                    
+
                     if (qualityGateStatus != "OK") {
                         error "❌ Quality Gate check failed"
                     }
@@ -110,15 +109,18 @@ pipeline {
                         // Update version with build number
                         sh "mvn versions:set -DnewVersion=${PROJECT_VERSION} -DgenerateBackupPoms=false"
                         
-                        // Deploy to Nexus with full artifacts
+                        // Deploy with HARDCODED credentials
                         sh """
                             mvn deploy \
                             -DskipTests \
-                            -DaltDeploymentRepository=nexus-releases::default::${NEXUS_URL}/repository/maven-releases/
+                            -DrepositoryId=nexus-releases \
+                            -Durl=http://192.168.56.10:8081/repository/maven-releases/ \
+                            -Dserver.username=admin \
+                            -Dserver.password=admin
                         """
                         
                         echo "✅ Artifact deployed to Nexus!"
-                        echo "📦 Nexus URL: ${NEXUS_URL}/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend%2F${PROJECT_VERSION}"
+                        echo "📦 Nexus URL: http://192.168.56.10:8081/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend%2F${PROJECT_VERSION}"
                     }
                 }
             }
@@ -160,7 +162,7 @@ pipeline {
         success {
             echo '🎉 Pipeline completed successfully!'
             echo "✅ Code Quality: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
-            echo "📦 Artifact: ${NEXUS_URL}/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend"
+            echo "📦 Artifact: http://192.168.56.10:8081/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend"
             echo "🐳 Docker Image: ${DOCKER_IMAGE}:${PROJECT_VERSION}"
         }
         failure {
