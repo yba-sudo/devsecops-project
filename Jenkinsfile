@@ -102,30 +102,31 @@ pipeline {
             }
         }
 
-        stage('Deploy to Nexus') {
-            steps {
-                dir('backend') {
-                    script {
-                        // Update version with build number
-                        sh "mvn versions:set -DnewVersion=${PROJECT_VERSION} -DgenerateBackupPoms=false"
-                        
-                        // Deploy with HARDCODED credentials
-                        sh """
-                            mvn deploy \
-                            -DskipTests \
-                            -DrepositoryId=nexus-releases \
-                            -Durl=http://192.168.56.10:8081/repository/maven-releases/ \
-                            -Dserver.username=admin \
-                            -Dserver.password=admin
-                        """
-                        
-                        echo "✅ Artifact deployed to Nexus!"
-                        echo "📦 Nexus URL: http://192.168.56.10:8081/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend%2F${PROJECT_VERSION}"
-                    }
-                }
-            }
-        }
-
+		stage('Deploy to Nexus') {
+			steps {
+				dir('backend') {
+					script {
+						// Get the JAR filename
+						def jarFile = sh(script: 'ls target/*.jar', returnStdout: true).trim()
+                
+						// Deploy using deploy-file with credentials IN THE URL
+						sh """
+							mvn deploy:deploy-file \
+							-Durl=http://admin:admin@192.168.56.10:8081/repository/maven-releases/ \
+							-DrepositoryId=nexus-releases \
+							-Dfile=${jarFile} \
+							-DpomFile=pom.xml \
+							-DgroupId=com.devsecops \
+							-DartifactId=devsecops-backend \
+							-Dversion=${PROJECT_VERSION} \
+							-Dpackaging=jar
+						"""
+                
+						echo "✅ Artifact deployed to Nexus!"
+					}
+				}
+			}
+		}
         stage('Build Docker Image') {
             steps {
                 script {
