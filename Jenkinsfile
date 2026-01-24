@@ -102,31 +102,36 @@ pipeline {
             }
         }
 
-		stage('Deploy to Nexus') {
-			steps {
-				dir('backend') {
-					script {
-						// Get the JAR filename
-						def jarFile = sh(script: 'ls target/*.jar', returnStdout: true).trim()
-                
-						// Deploy using deploy-file with credentials IN THE URL
-						sh """
-							mvn deploy:deploy-file \
-							-Durl=http://admin:admin@192.168.56.10:8081/repository/maven-releases/ \
-							-DrepositoryId=nexus-releases \
-							-Dfile=${jarFile} \
-							-DpomFile=pom.xml \
-							-DgroupId=com.devsecops \
-							-DartifactId=devsecops-backend \
-							-Dversion=${PROJECT_VERSION} \
-							-Dpackaging=jar
-						"""
-                
-						echo "✅ Artifact deployed to Nexus!"
-					}
-				}
-			}
-		}
+        stage('Deploy to Nexus') {
+            steps {
+                dir('backend') {
+                    script {
+                        // First update version in pom.xml
+                        sh "mvn versions:set -DnewVersion=${PROJECT_VERSION} -DgenerateBackupPoms=false"
+                        
+                        // Re-package with new version
+                        sh 'mvn package -DskipTests'
+                        
+                        // Deploy main JAR (not javadoc or sources)
+                        sh """
+                            mvn deploy:deploy-file \
+                            -Durl=http://admin:admin@${NEXUS_URL}/repository/maven-releases/ \
+                            -DrepositoryId=nexus-releases \
+                            -Dfile=target/devsecops-backend-${PROJECT_VERSION}.jar \
+                            -DpomFile=pom.xml \
+                            -DgroupId=com.devsecops \
+                            -DartifactId=devsecops-backend \
+                            -Dversion=${PROJECT_VERSION} \
+                            -Dpackaging=jar
+                        """
+                        
+                        echo "✅ Artifact ${PROJECT_VERSION} deployed to Nexus!"
+                        echo "📦 Nexus URL: ${NEXUS_URL}/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend%2F${PROJECT_VERSION}"
+                    }
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -163,7 +168,7 @@ pipeline {
         success {
             echo '🎉 Pipeline completed successfully!'
             echo "✅ Code Quality: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
-            echo "📦 Artifact: http://192.168.56.10:8081/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend"
+            echo "📦 Artifact: ${NEXUS_URL}/#browse/browse:maven-releases:com%2Fdevsecops%2Fdevsecops-backend"
             echo "🐳 Docker Image: ${DOCKER_IMAGE}:${PROJECT_VERSION}"
         }
         failure {
