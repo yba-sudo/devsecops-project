@@ -161,7 +161,6 @@ pipeline {
 
     post {
         always {
-            sh 'docker-compose down || true'
             junit 'backend/target/surefire-reports/*.xml'
             archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
         }
