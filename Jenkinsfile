@@ -142,6 +142,8 @@ pipeline {
 
         stage('Run with Docker Compose') {
             steps {
+                sh 'docker stop devsecops-backend devsecops-frontend 2>/dev/null || true'
+                sh 'docker rm devsecops-backend devsecops-frontend 2>/dev/null || true'
                 sh 'docker-compose down || true'
                 sh 'docker-compose up -d --build'
                 sleep 30
