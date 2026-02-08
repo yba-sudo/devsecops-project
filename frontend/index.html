@@ -38,35 +38,51 @@
     <div class="container">
         <h1>DevSecOps Pipeline Demo</h1>
         <p>This is a simple frontend for our pipeline demonstration.</p>
-        
+
         <button onclick="callBackend()">Call Backend API</button>
         <button onclick="checkHealth()">Check Health</button>
-        
+        <button onclick="greetUser()">Greet User</button>
+
         <div id="response">API response will appear here...</div>
     </div>
 
     <script>
-        async function callBackend() {
-            try {
-                const response = await fetch('http://localhost:8080/api/hello');
-                const text = await response.text();
-                document.getElementById('response').innerHTML = 
-                    `<strong>Response:</strong> ${text}`;
-            } catch (error) {
-                document.getElementById('response').innerHTML = 
-                    `<strong>Error:</strong> ${error.message}`;
-            }
+        // SIMPLE VERSION - NO TEMPLATE STRINGS
+        const BACKEND_URL = 'http://192.168.56.10:8088';
+        
+        function callBackend() {
+            fetch(BACKEND_URL + '/api/hello')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('response').innerHTML = '<strong>Response:</strong> ' + text;
+                })
+                .catch(error => {
+                    document.getElementById('response').innerHTML = '<strong>Error:</strong> ' + error.message;
+                });
         }
-
-        async function checkHealth() {
-            try {
-                const response = await fetch('http://localhost:8080/api/health');
-                const text = await response.text();
-                document.getElementById('response').innerHTML = 
-                    `<strong>Health Check:</strong> ${text}`;
-            } catch (error) {
-                document.getElementById('response').innerHTML = 
-                    `<strong>Error:</strong> ${error.message}`;
+        
+        function checkHealth() {
+            fetch(BACKEND_URL + '/api/health')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('response').innerHTML = '<strong>Health Check:</strong> ' + text;
+                })
+                .catch(error => {
+                    document.getElementById('response').innerHTML = '<strong>Error:</strong> ' + error.message;
+                });
+        }
+        
+        function greetUser() {
+            const name = prompt("Enter your name:", "Professor");
+            if (name) {
+                fetch(BACKEND_URL + '/api/greet?name=' + encodeURIComponent(name))
+                    .then(response => response.text())
+                    .then(text => {
+                        document.getElementById('response').innerHTML = '<strong>Greeting:</strong> ' + text;
+                    })
+                    .catch(error => {
+                        document.getElementById('response').innerHTML = '<strong>Error:</strong> ' + error.message;
+                    });
             }
         }
     </script>
